@@ -233,7 +233,7 @@ let view='detail',page=0,sortK=null,sortD=1;const PS=50;
 const VIEWS={
   detail:{cols:[['cc','รหัสศูนย์ต้นทุน'],['name','ชื่อหน่วยงาน'],['nameFull','ชื่อเต็มหน่วยงาน','d'],['parent','หน่วยงานหลัก'],['parentFull','ชื่อเต็มหน่วยงานหลัก','d'],['desc','คำอธิบายของสินทรัพย์','d'],['type','ประเภท'],['brand','ยี่ห้อ'],['contract','สัญญา'],['qty','จำนวน','num'],['one','มูลค่า 1 บาท','num'],['more','มากกว่า 1 บาท','num'],['book','มูลค่าตามบัญชี','num2']],
     rows:r=>r},
-  cc:{cols:[['k','รหัสศูนย์ต้นทุน'],['name','ชื่อหน่วยงาน'],['nameFull','ชื่อเต็มหน่วยงาน','d'],['parent','หน่วยงานหลัก'],['n','จำนวนรายการ','num'],['qty','ทั้งหมด','num'],['one','มูลค่า 1 บาท','num'],['more','มากกว่า 1 บาท','num'],['book','มูลค่าตามบัญชี','num2']],
+  cc:{cols:[['k','รหัสศูนย์ต้นทุน'],['name','ชื่อหน่วยงาน'],['nameFull','ชื่อเต็มหน่วยงาน','d'],['parent','หน่วยงานหลัก'],['qty','ทั้งหมด','num'],['one','มูลค่า 1 บาท','num'],['more','มากกว่า 1 บาท','num'],['book','มูลค่าตามบัญชี','num2']],
     rows:r=>groups(r,'cc').map(g=>{const f=r.find(x=>x.cc===g.k);return {...g,name:f.name,nameFull:f.nameFull,parent:f.parent}})},
   desc:{cols:[['k','คำอธิบายของสินทรัพย์','d'],['type','ประเภท'],['brand','ยี่ห้อ'],['contract','สัญญา'],['n','จำนวนศูนย์ต้นทุน','num'],['qty','ทั้งหมด','num'],['one','มูลค่า 1 บาท','num'],['more','มากกว่า 1 บาท','num'],['book','มูลค่าตามบัญชี','num2']],
     rows:r=>groups(r,'desc').map(g=>{const f=r.find(x=>x.desc===g.k);return {...g,type:f.type,brand:f.brand,contract:f.contract}})},
