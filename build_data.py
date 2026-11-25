@@ -6,7 +6,14 @@ OUT = pathlib.Path(__file__).with_name("data.js")
 
 wb = openpyxl.load_workbook(SRC, data_only=True, read_only=True)
 # cost centre -> หน่วยงานหลัก
-parent = {r[1]: r[3] for r in wb["สรุปจำนวนเครื่อง"].iter_rows(min_row=5, values_only=True)
+def norm_parent(p):
+    # The workbook takes the text after the last "." in the unit name, so "ผจฟ.1กปบ." becomes
+    # "1กปบ." and "...ผจฟ.1กปบ" becomes "1กปบ" -> both are really กปบ. Strip the leading
+    # digit and restore the trailing dot.
+    m = re.fullmatch(r"\d+(.+?)\.?", p or "")
+    return m.group(1) + "." if m else p
+
+parent = {r[1]: norm_parent(r[3]) for r in wb["สรุปจำนวนเครื่อง"].iter_rows(min_row=5, values_only=True)
           if isinstance(r[0], int)}
 
 BRANDS = [("FUJI XEROX", "FUJI XEROX"), ("XEROX", "FUJI XEROX"), ("SAMSUNG", "SAMSUNG"), ("ML-45", "SAMSUNG"),
