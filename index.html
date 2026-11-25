@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Printer Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f4f4f2;--surface:#fcfcfb;--line:#e4e3df;--grid:#ecebe7;
+  --text:#0b0b0b;--text2:#52514e;--muted:#8a8984;
+  --s1:#2a78d6;--s2:#eb6834;--s1-soft:#cde2fb;--hover:#f0f5fc;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#111110;--surface:#1a1a19;--line:#2c2c2a;--grid:#262624;
+    --text:#f0efec;--text2:#c3c2b7;--muted:#8d8c86;
+    --s1:#3987e5;--s2:#d95926;--s1-soft:#1c3a5e;--hover:#1f2733;--shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#111110;--surface:#1a1a19;--line:#2c2c2a;--grid:#262624;
+  --text:#f0efec;--text2:#c3c2b7;--muted:#8d8c86;
+  --s1:#3987e5;--s2:#d95926;--s1-soft:#1c3a5e;--hover:#1f2733;--shadow:none;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 "IBM Plex Sans Thai",system-ui,sans-serif;}
+.wrap{max-width:1280px;margin:0 auto;padding:24px 16px 48px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:20px}
+h1{font-size:22px;margin:0;font-weight:700;letter-spacing:-.01em}
+.sub{color:var(--text2);margin:2px 0 0}
+button,select,input{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+button{cursor:pointer}
+button:hover{background:var(--hover)}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:16px;box-shadow:var(--shadow);position:sticky;top:0;z-index:5}
+.filters select{max-width:200px}
+.filters input{flex:1;min-width:180px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;width:100%}
+.chips:empty{display:none}
+.chip{font-size:12px;background:var(--s1-soft);border:0;border-radius:999px;padding:2px 10px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+.kpi .l{color:var(--text2);font-size:13px}
+.kpi .v{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;margin-top:4px}
+.kpi .n{color:var(--muted);font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:var(--shadow);min-width:0}
+.card h2{font-size:15px;margin:0 0 2px;font-weight:600}
+.card .hint{color:var(--muted);font-size:12px;margin:0 0 12px}
+.c4{grid-column:span 4}.c6{grid-column:span 6}.c8{grid-column:span 8}.c12{grid-column:span 12}
+@media (max-width:960px){.c4,.c6,.c8{grid-column:span 12}}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--text2);margin-bottom:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+/* horizontal bars */
+.hbar{display:grid;grid-template-columns:minmax(90px,38%) 1fr auto;align-items:center;gap:4px 10px;font-size:13px}
+.hbar .row{display:contents;cursor:pointer}
+.hbar .lab{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text2)}
+.hbar .track{height:18px;display:flex;gap:2px}
+.hbar .seg{height:100%;border-radius:0 4px 4px 0;min-width:2px}
+.hbar .seg.a:not(:last-child){border-radius:0}
+.hbar .val{font-variant-numeric:tabular-nums;text-align:right;color:var(--text);min-width:44px}
+.hbar .row:hover .lab,.hbar .row.sel .lab{color:var(--text);font-weight:600}
+.hbar .row.dim{opacity:.35}
+/* columns */
+.cols{display:flex;align-items:flex-end;gap:6px;height:220px;padding-top:18px;border-bottom:1px solid var(--line);position:relative}
+.col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;cursor:pointer;min-width:0}
+.col .bar{width:100%;max-width:38px;display:flex;flex-direction:column-reverse;gap:2px}
+.col .bar div{width:100%}
+.col .bar div:last-child{border-radius:4px 4px 0 0}
+.col .top{font-size:11px;color:var(--text2);font-variant-numeric:tabular-nums;margin-bottom:3px}
+.col.dim{opacity:.35}
+.xlabs{display:flex;gap:6px;margin-top:6px}
+.xlabs span{flex:1;text-align:center;font-size:11px;color:var(--muted);min-width:0;overflow:hidden}
+#tip{position:fixed;pointer-events:none;background:var(--text);color:var(--surface);font-size:12px;padding:6px 9px;border-radius:6px;opacity:0;transition:opacity .1s;z-index:20;max-width:320px}
+/* table */
+.tbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.tabs button.on{background:var(--s1);color:#fff;border-color:var(--s1)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--grid);text-align:left;white-space:nowrap}
+td.d{white-space:normal;min-width:260px}
+th{position:sticky;top:0;background:var(--surface);color:var(--text2);font-weight:600;cursor:pointer;user-select:none}
+th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr:hover{background:var(--hover)}
+tfoot td{font-weight:700;border-top:2px solid var(--line)}
+.pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px;color:var(--text2);font-size:13px}
+footer{color:var(--muted);font-size:12px;margin-top:24px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>สรุปสัญญาเครื่องพิมพ์ (Printer)</h1>
+      <p class="sub">รายละเอียดเครื่องพิมพ์ตามคำอธิบายสินทรัพย์ แยกศูนย์ต้นทุน</p>
+    </div>
+    <button id="theme" title="สลับธีม">◐ ธีม</button>
+  </header>
+
+  <div class="filters" role="search">
+    <select id="fParent"><option value="">หน่วยงานหลัก: ทั้งหมด</option></select>
+    <select id="fType"><option value="">ประเภท: ทั้งหมด</option></select>
+    <select id="fBrand"><option value="">ยี่ห้อ: ทั้งหมด</option></select>
+    <select id="fYear"><option value="">ปีสัญญา: ทั้งหมด</option></select>
+    <select id="fVal"><option value="">มูลค่า: ทั้งหมด</option><option value="one">มูลค่า 1 บาท</option><option value="more">มากกว่า 1 บาท</option></select>
+    <input id="fQ" type="search" placeholder="ค้นหา รหัส/ชื่อหน่วยงาน/คำอธิบาย/สัญญา…">
+    <button id="reset">ล้างตัวกรอง</button>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="grid">
+    <div class="card c4"><h2>จำนวนเครื่องตามประเภท</h2><p class="hint">คลิกแท่งเพื่อกรอง</p>
+      <div class="legend"><span><i style="background:var(--s1)"></i>มูลค่า 1 บาท</span><span><i style="background:var(--s2)"></i>มากกว่า 1 บาท</span></div>
+      <div class="hbar" id="cType"></div></div>
+    <div class="card c4"><h2>จำนวนเครื่องตามยี่ห้อ</h2><p class="hint">จากคำอธิบาย/รุ่น — "ไม่ระบุยี่ห้อ" คือคำอธิบายที่ไม่มีชื่อยี่ห้อ</p>
+      <div class="legend"><span><i style="background:var(--s1)"></i>มูลค่า 1 บาท</span><span><i style="background:var(--s2)"></i>มากกว่า 1 บาท</span></div>
+      <div class="hbar" id="cBrand"></div></div>
+    <div class="card c4"><h2>มูลค่าตามบัญชีตามประเภท (บาท)</h2><p class="hint">เครื่องที่ยังมีมูลค่าเหลือ</p>
+      <div class="hbar" id="cBook"></div></div>
+
+    <div class="card c12"><h2>จำนวนเครื่องตามปีสัญญา (พ.ศ.)</h2><p class="hint">ปีจากเลขสัญญาในคำอธิบาย เช่น บ.24/2563, สต.063/51</p>
+      <div class="legend"><span><i style="background:var(--s1)"></i>มูลค่า 1 บาท</span><span><i style="background:var(--s2)"></i>มากกว่า 1 บาท</span></div>
+      <div class="cols" id="cYear"></div><div class="xlabs" id="cYearX"></div></div>
+
+    <div class="card c6"><h2>หน่วยงานหลัก 15 อันดับแรก</h2><p class="hint">ตามจำนวนเครื่อง</p>
+      <div class="legend"><span><i style="background:var(--s1)"></i>มูลค่า 1 บาท</span><span><i style="background:var(--s2)"></i>มากกว่า 1 บาท</span></div>
+      <div class="hbar" id="cParent"></div></div>
+    <div class="card c6"><h2>สัญญา/คำอธิบาย 15 อันดับแรก</h2><p class="hint">ตามจำนวนเครื่อง</p>
+      <div class="legend"><span><i style="background:var(--s1)"></i>มูลค่า 1 บาท</span><span><i style="background:var(--s2)"></i>มากกว่า 1 บาท</span></div>
+      <div class="hbar" id="cDesc"></div></div>
+
+    <div class="card c12">
+      <div class="tbar">
+        <div class="tabs"><button data-v="detail" class="on">รายละเอียด</button> <button data-v="cc">สรุปตามศูนย์ต้นทุน</button> <button data-v="desc">สรุปตามคำอธิบาย</button></div>
+        <button id="csv">⬇ ดาวน์โหลด CSV</button>
+      </div>
+      <div class="tablewrap"><table id="tbl"></table></div>
+      <div class="pager"><span id="pinfo"></span><button id="prev">‹ ก่อนหน้า</button><button id="next">ถัดไป ›</button></div>
+    </div>
+  </section>
+  <footer>ที่มา: สรุปสัญญา_Printer.xlsx — ชีต "รายละเอียดตามคำอธิบาย" (หน่วยงานหลักจากชีต "สรุปจำนวนเครื่อง") · ยี่ห้อ ประเภท และปีสัญญา แยกจากข้อความคำอธิบายสินทรัพย์</footer>
+</div>
+<div id="tip"></div>
+<script src="data.js"></script>
+<script>
+(()=>{
+const D=window.PRINTER_DATA, C=Object.fromEntries(D.cols.map((c,i)=>[c,i]));
+const ALL=D.rows.map(r=>Object.fromEntries(D.cols.map((c,i)=>[c,r[i]])));
+const $=id=>document.getElementById(id);
+const fmt=n=>n.toLocaleString('th-TH'), fmt2=n=>n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const F={parent:'',type:'',brand:'',year:'',val:'',q:''};
+const sel={parent:'fParent',type:'fType',brand:'fBrand',year:'fYear',val:'fVal'};
+
+// theme toggle
+const root=document.documentElement;
+try{const t=localStorage.getItem('theme');if(t)root.dataset.theme=t}catch(e){}
+$('theme').onclick=()=>{const dark=root.dataset.theme?root.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
+  root.dataset.theme=dark?'light':'dark';try{localStorage.setItem('theme',root.dataset.theme)}catch(e){}};
+
+// populate selects
+const sum=(rows,k)=>rows.reduce((a,r)=>a+r[k],0);
+function groups(rows,key){const m=new Map();for(const r of rows){const k=r[key]??'ไม่ระบุ';let g=m.get(k);if(!g)m.set(k,g={k,qty:0,one:0,more:0,book:0,n:0});g.qty+=r.qty;g.one+=r.one;g.more+=r.more;g.book+=r.book;g.n++}return [...m.values()]}
+function fill(id,key,sortByName){const g=groups(ALL,key).sort(sortByName?(a,b)=>String(a.k).localeCompare(String(b.k),'th'):(a,b)=>b.qty-a.qty);
+  $(id).insertAdjacentHTML('beforeend',g.map(x=>`<option value="${esc(x.k)}">${esc(x.k)} (${fmt(x.qty)})</option>`).join(''))}
+fill('fParent','parent',true);fill('fType','type');fill('fBrand','brand');
+$('fYear').insertAdjacentHTML('beforeend',groups(ALL,'year').sort((a,b)=>String(b.k).localeCompare(String(a.k))).map(x=>`<option value="${x.k}">${x.k} (${fmt(x.qty)})</option>`).join(''));
+
+function filtered(except){const q=F.q.trim().toLowerCase();
+  return ALL.filter(r=>(except==='parent'||!F.parent||r.parent===F.parent)&&(except==='type'||!F.type||r.type===F.type)&&(except==='brand'||!F.brand||r.brand===F.brand)
+   &&(except==='year'||!F.year||String(r.year??'ไม่ระบุ')===F.year)&&(!F.val||r[F.val]>0)
+   &&(!q||(r.cc+' '+r.name+' '+r.desc+' '+r.contract+' '+r.parent).toLowerCase().includes(q)))}
+
+// tooltip
+const tip=$('tip');
+document.addEventListener('mousemove',e=>{const t=e.target.closest('[data-tip]');if(!t){tip.style.opacity=0;return}
+  tip.innerHTML=t.dataset.tip;tip.style.opacity=1;const w=tip.offsetWidth;tip.style.left=Math.min(e.clientX+12,innerWidth-w-8)+'px';tip.style.top=(e.clientY+14)+'px'});
+const tipOf=g=>`<b>${esc(g.k)}</b><br>ทั้งหมด ${fmt(g.qty)} เครื่อง<br>มูลค่า 1 บาท ${fmt(g.one)} · มากกว่า 1 บาท ${fmt(g.more)}<br>มูลค่าตามบัญชี ${fmt2(g.book)} บาท`;
+
+function hbar(el,data,filterKey,{metric='qty',limit=99,stacked=true}={}){
+  const g=data.sort((a,b)=>b[metric]-a[metric]).filter(x=>x[metric]>0).slice(0,limit);
+  const max=Math.max(1,...g.map(x=>x[metric]));
+  el.innerHTML=g.length?g.map(x=>{const cls=filterKey&&F[filterKey]?(String(x.k)===F[filterKey]?'sel':'dim'):'';
+    const segs=stacked?`${x.one?`<div class="seg a" style="width:${x.one/max*100}%;background:var(--s1)"></div>`:''}${x.more?`<div class="seg" style="width:${x.more/max*100}%;background:var(--s2)"></div>`:''}`
+      :`<div class="seg" style="width:${x[metric]/max*100}%;background:var(--s1)"></div>`;
+    return `<div class="row ${cls}" data-k="${esc(x.k)}" data-tip="${esc(tipOf(x))}"><span class="lab" title="${esc(x.k)}">${esc(x.k)}</span><div class="track">${segs}</div><span class="val">${metric==='book'?fmt(Math.round(x.book)):fmt(x[metric])}</span></div>`}).join('')
+    :'<span class="lab">ไม่มีข้อมูล</span>';
+  if(filterKey)el.querySelectorAll('.row').forEach(r=>r.onclick=()=>setF(filterKey,F[filterKey]===r.dataset.k?'':r.dataset.k));
+  else el.querySelectorAll('.row').forEach(r=>r.onclick=()=>{F.q=r.dataset.k;$('fQ').value=F.q;render()});
+}
+
+function years(){const rows=filtered('year');const g=groups(rows,'year').filter(x=>x.k!=='ไม่ระบุ');
+  const all=groups(ALL,'year').map(x=>x.k).filter(k=>k!=='ไม่ระบุ').sort();const m=new Map(g.map(x=>[x.k,x]));
+  const max=Math.max(1,...g.map(x=>x.qty));
+  $('cYear').innerHTML=all.map(y=>{const x=m.get(y)||{k:y,qty:0,one:0,more:0,book:0};const cls=F.year?(String(y)===F.year?'':'dim'):'';
+    return `<div class="col ${cls}" data-k="${y}" data-tip="${esc(tipOf(x))}"><span class="top">${x.qty?fmt(x.qty):''}</span><div class="bar">${x.one?`<div style="height:${x.one/max*190}px;background:var(--s1)"></div>`:''}${x.more?`<div style="height:${x.more/max*190}px;background:var(--s2)"></div>`:''}</div></div>`}).join('');
+  $('cYearX').innerHTML=all.map(y=>`<span>${y}</span>`).join('');
+  $('cYear').querySelectorAll('.col').forEach(c=>c.onclick=()=>setF('year',F.year===c.dataset.k?'':c.dataset.k));
+}
+
+function kpis(rows){const qty=sum(rows,'qty'),one=sum(rows,'one'),more=sum(rows,'more'),book=sum(rows,'book');
+  const cc=new Set(rows.map(r=>r.cc)).size,par=new Set(rows.map(r=>r.parent)).size,ds=new Set(rows.map(r=>r.desc)).size;
+  const pct=n=>qty?(n/qty*100).toFixed(1)+'%':'–';
+  $('kpis').innerHTML=[
+    ['จำนวนเครื่องทั้งหมด',fmt(qty),'เครื่อง'],
+    ['มูลค่า 1 บาท',fmt(one),pct(one)+' ของทั้งหมด (ตัดค่าเสื่อมครบ)'],
+    ['มากกว่า 1 บาท',fmt(more),pct(more)+' ของทั้งหมด'],
+    ['มูลค่าตามบัญชีรวม',fmt2(book),'บาท'],
+    ['ศูนย์ต้นทุน',fmt(cc),fmt(par)+' หน่วยงานหลัก'],
+    ['คำอธิบาย/สัญญา',fmt(ds),'รายการไม่ซ้ำ'],
+  ].map(([l,v,n])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="n">${n}</div></div>`).join('')}
+
+// table
+let view='detail',page=0,sortK=null,sortD=1;const PS=50;
+const VIEWS={
+  detail:{cols:[['cc','รหัสศูนย์ต้นทุน'],['name','ชื่อหน่วยงาน'],['parent','หน่วยงานหลัก'],['desc','คำอธิบายของสินทรัพย์','d'],['type','ประเภท'],['brand','ยี่ห้อ'],['contract','สัญญา'],['qty','จำนวน','num'],['one','มูลค่า 1 บาท','num'],['more','มากกว่า 1 บาท','num'],['book','มูลค่าตามบัญชี','num2']],
+    rows:r=>r},
+  cc:{cols:[['k','รหัสศูนย์ต้นทุน'],['name','ชื่อหน่วยงาน'],['parent','หน่วยงานหลัก'],['n','จำนวนรายการ','num'],['qty','ทั้งหมด','num'],['one','มูลค่า 1 บาท','num'],['more','มากกว่า 1 บาท','num'],['book','มูลค่าตามบัญชี','num2']],
+    rows:r=>groups(r,'cc').map(g=>{const f=r.find(x=>x.cc===g.k);return {...g,name:f.name,parent:f.parent}})},
+  desc:{cols:[['k','คำอธิบายของสินทรัพย์','d'],['type','ประเภท'],['brand','ยี่ห้อ'],['contract','สัญญา'],['n','จำนวนศูนย์ต้นทุน','num'],['qty','ทั้งหมด','num'],['one','มูลค่า 1 บาท','num'],['more','มากกว่า 1 บาท','num'],['book','มูลค่าตามบัญชี','num2']],
+    rows:r=>groups(r,'desc').map(g=>{const f=r.find(x=>x.desc===g.k);return {...g,type:f.type,brand:f.brand,contract:f.contract}})},
+};
+let tableRows=[];
+function table(rows){const V=VIEWS[view];tableRows=V.rows(rows);
+  if(sortK)tableRows.sort((a,b)=>(typeof a[sortK]==='number'?a[sortK]-b[sortK]:String(a[sortK]).localeCompare(String(b[sortK]),'th'))*sortD);
+  else if(view!=='detail')tableRows.sort((a,b)=>b.qty-a.qty);
+  const pages=Math.max(1,Math.ceil(tableRows.length/PS));page=Math.min(page,pages-1);
+  const cell=(r,[k,,t])=>`<td class="${t?(t==='d'?'d':'num'):''}">${t==='num2'?fmt2(r[k]):t==='num'?fmt(r[k]):esc(r[k])}</td>`;
+  const tot=k=>tableRows.reduce((a,r)=>a+r[k],0);
+  $('tbl').innerHTML=`<thead><tr>${V.cols.map(([k,l,t])=>`<th data-k="${k}" class="${t&&t!=='d'?'num':''}">${l}${sortK===k?(sortD>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead>
+  <tbody>${tableRows.slice(page*PS,page*PS+PS).map(r=>`<tr>${V.cols.map(c=>cell(r,c)).join('')}</tr>`).join('')}</tbody>
+  <tfoot><tr>${V.cols.map(([k,,t],i)=>i===0?`<td>รวม ${fmt(tableRows.length)} แถว</td>`:['qty','one','more','book'].includes(k)?`<td class="num">${t==='num2'?fmt2(tot(k)):fmt(tot(k))}</td>`:'<td></td>').join('')}</tr></tfoot>`;
+  $('pinfo').textContent=`หน้า ${page+1} / ${pages}`;$('prev').disabled=page===0;$('next').disabled=page>=pages-1;
+  $('tbl').querySelectorAll('th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;sortD=sortK===k?-sortD:(['k','name','parent','desc','type','brand','contract','cc'].includes(k)?1:-1);sortK=k;table(filtered())});
+}
+$('prev').onclick=()=>{page--;table(filtered())};$('next').onclick=()=>{page++;table(filtered())};
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));view=b.dataset.v;page=0;sortK=null;table(filtered())});
+$('csv').onclick=()=>{const V=VIEWS[view];const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+  const csv='﻿'+[V.cols.map(c=>q(c[1])).join(','),...tableRows.map(r=>V.cols.map(([k])=>q(r[k])).join(','))].join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=`printer_${view}.csv`;a.click();URL.revokeObjectURL(a.href)};
+
+function chips(){const lab={parent:'หน่วยงานหลัก',type:'ประเภท',brand:'ยี่ห้อ',year:'ปีสัญญา',val:'มูลค่า',q:'ค้นหา'};
+  $('chips').innerHTML=Object.entries(F).filter(([,v])=>v).map(([k,v])=>`<button class="chip" data-k="${k}">${lab[k]}: ${esc(k==='val'?(v==='one'?'1 บาท':'มากกว่า 1 บาท'):v)} ✕</button>`).join('');
+  $('chips').querySelectorAll('.chip').forEach(c=>c.onclick=()=>setF(c.dataset.k,''))}
+
+function setF(k,v){F[k]=v;if(sel[k])$(sel[k]).value=v;else $('fQ').value=v;page=0;render()}
+function render(){const rows=filtered();kpis(rows);chips();
+  hbar($('cType'),groups(filtered('type'),'type'),'type');
+  hbar($('cBrand'),groups(filtered('brand'),'brand'),'brand');
+  hbar($('cBook'),groups(rows,'type'),null,{metric:'book',stacked:false});
+  $('cBook').querySelectorAll('.row').forEach(r=>r.onclick=()=>setF('type',F.type===r.dataset.k?'':r.dataset.k));
+  hbar($('cParent'),groups(filtered('parent'),'parent'),'parent',{limit:15});
+  hbar($('cDesc'),groups(rows,'desc'),null,{limit:15});
+  years();table(rows)}
+
+Object.entries(sel).forEach(([k,id])=>$(id).onchange=e=>setF(k,e.target.value));
+let t;$('fQ').oninput=e=>{clearTimeout(t);t=setTimeout(()=>{F.q=e.target.value;page=0;render()},200)};
+$('reset').onclick=()=>{Object.keys(F).forEach(k=>F[k]='');Object.values(sel).forEach(id=>$(id).value='');$('fQ').value='';sortK=null;render()};
+render();
+})();
+</script>
+</body>
+</html>
