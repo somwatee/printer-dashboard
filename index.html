@@ -65,7 +65,7 @@ button:hover{background:var(--hover)}
 .hbar .seg.a:not(:last-child){border-radius:0}
 .hbar .val{font-variant-numeric:tabular-nums;text-align:right;color:var(--text);min-width:44px}
 .hbar .row:hover .lab,.hbar .row.sel .lab{color:var(--text);font-weight:600}
-.hbar .row.dim{opacity:.35}
+.hbar .row.dim>*{opacity:.35}
 /* columns */
 .cols{display:flex;align-items:flex-end;gap:6px;height:220px;padding-top:18px;border-bottom:1px solid var(--line);position:relative}
 .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;cursor:pointer;min-width:0}
@@ -107,6 +107,7 @@ footer{color:var(--muted);font-size:12px;margin-top:24px}
     <select id="fType"><option value="">ประเภท: ทั้งหมด</option></select>
     <select id="fBrand"><option value="">ยี่ห้อ: ทั้งหมด</option></select>
     <select id="fYear"><option value="">ปีสัญญา: ทั้งหมด</option></select>
+    <select id="fContract"><option value="">สัญญา: ทั้งหมด</option></select>
     <select id="fVal"><option value="">มูลค่า: ทั้งหมด</option><option value="one">มูลค่า 1 บาท</option><option value="more">มากกว่า 1 บาท</option></select>
     <input id="fQ" type="search" placeholder="ค้นหา ตัวย่อหรือชื่อเต็มหน่วยงาน / รหัส / คำอธิบาย / สัญญา…">
     <button id="reset">ล้างตัวกรอง</button>
@@ -129,16 +130,19 @@ footer{color:var(--muted);font-size:12px;margin-top:24px}
       <div class="legend"><span><i style="background:var(--s1)"></i>มูลค่า 1 บาท</span><span><i style="background:var(--s2)"></i>มากกว่า 1 บาท</span></div>
       <div class="cols" id="cYear"></div><div class="xlabs" id="cYearX"></div></div>
 
-    <div class="card c6"><h2>หน่วยงานหลัก 15 อันดับแรก</h2><p class="hint">ตามจำนวนเครื่อง</p>
+    <div class="card c6"><h2>สัญญา 15 อันดับแรก</h2><p class="hint">ตามจำนวนเครื่อง — คลิกแท่งเพื่อกรองตามสัญญา</p>
       <div class="legend"><span><i style="background:var(--s1)"></i>มูลค่า 1 บาท</span><span><i style="background:var(--s2)"></i>มากกว่า 1 บาท</span></div>
-      <div class="hbar" id="cParent"></div></div>
-    <div class="card c6"><h2>สัญญา/คำอธิบาย 15 อันดับแรก</h2><p class="hint">ตามจำนวนเครื่อง</p>
+      <div class="hbar" id="cContract"></div></div>
+    <div class="card c6"><h2>คำอธิบายสินทรัพย์ 15 อันดับแรก</h2><p class="hint">ตามจำนวนเครื่อง — คลิกเพื่อค้นหา</p>
       <div class="legend"><span><i style="background:var(--s1)"></i>มูลค่า 1 บาท</span><span><i style="background:var(--s2)"></i>มากกว่า 1 บาท</span></div>
       <div class="hbar" id="cDesc"></div></div>
+    <div class="card c12"><h2>หน่วยงานหลัก 15 อันดับแรก</h2><p class="hint">ตามจำนวนเครื่อง — คลิกแท่งเพื่อกรอง</p>
+      <div class="legend"><span><i style="background:var(--s1)"></i>มูลค่า 1 บาท</span><span><i style="background:var(--s2)"></i>มากกว่า 1 บาท</span></div>
+      <div class="hbar" id="cParent"></div></div>
 
     <div class="card c12">
       <div class="tbar">
-        <div class="tabs"><button data-v="detail" class="on">รายละเอียด</button> <button data-v="cc">สรุปตามศูนย์ต้นทุน</button> <button data-v="desc">สรุปตามคำอธิบาย</button></div>
+        <div class="tabs"><button data-v="detail" class="on">รายละเอียด</button> <button data-v="cc">สรุปตามศูนย์ต้นทุน</button> <button data-v="desc">สรุปตามคำอธิบาย</button> <button data-v="contract">สรุปตามสัญญา</button></div>
         <button id="csv">⬇ ดาวน์โหลด CSV</button>
       </div>
       <div class="tablewrap"><table id="tbl"></table></div>
@@ -156,8 +160,8 @@ const ALL=D.rows.map(r=>Object.fromEntries(D.cols.map((c,i)=>[c,r[i]])));
 const $=id=>document.getElementById(id);
 const fmt=n=>n.toLocaleString('th-TH'), fmt2=n=>n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const F={parent:'',type:'',brand:'',year:'',val:'',q:''};
-const sel={parent:'fParent',type:'fType',brand:'fBrand',year:'fYear',val:'fVal'};
+const F={parent:'',type:'',brand:'',year:'',contract:'',val:'',q:''};
+const sel={parent:'fParent',type:'fType',brand:'fBrand',year:'fYear',contract:'fContract',val:'fVal'};
 
 // theme toggle
 const root=document.documentElement;
@@ -175,10 +179,14 @@ function fill(id,key,sortByName){const g=groups(ALL,key).sort(sortByName?(a,b)=>
   $(id).insertAdjacentHTML('beforeend',g.map(x=>`<option value="${esc(x.k)}">${esc(key==='parent'?plab(x.k):x.k)} (${fmt(x.qty)})</option>`).join(''))}
 fill('fParent','parent',true);fill('fType','type');fill('fBrand','brand');
 $('fYear').insertAdjacentHTML('beforeend',groups(ALL,'year').sort((a,b)=>String(b.k).localeCompare(String(a.k))).map(x=>`<option value="${x.k}">${x.k} (${fmt(x.qty)})</option>`).join(''));
+// contracts: newest year first, then contract number
+const cNum=k=>{const m=/^(\D+)(\d+)\/(\d+)$/.exec(k);return m?[+m[3],m[1],+m[2]]:[0,k,0]};
+$('fContract').insertAdjacentHTML('beforeend',groups(ALL,'contract').sort((a,b)=>{const x=cNum(a.k),y=cNum(b.k);return y[0]-x[0]||x[1].localeCompare(y[1],'th')||x[2]-y[2]})
+  .map(x=>`<option value="${esc(x.k)}">${esc(x.k)} (${fmt(x.qty)})</option>`).join(''));
 
 function filtered(except){const q=F.q.trim().toLowerCase();
   return ALL.filter(r=>(except==='parent'||!F.parent||r.parent===F.parent)&&(except==='type'||!F.type||r.type===F.type)&&(except==='brand'||!F.brand||r.brand===F.brand)
-   &&(except==='year'||!F.year||String(r.year??'ไม่ระบุ')===F.year)&&(!F.val||r[F.val]>0)
+   &&(except==='year'||!F.year||String(r.year??'ไม่ระบุ')===F.year)&&(except==='contract'||!F.contract||r.contract===F.contract)&&(!F.val||r[F.val]>0)
    &&(!q||(r.cc+' '+r.name+' '+r.nameFull+' '+r.desc+' '+r.contract+' '+r.parent+' '+r.parentFull).toLowerCase().includes(q)))}
 
 // tooltip
@@ -229,6 +237,9 @@ const VIEWS={
     rows:r=>groups(r,'cc').map(g=>{const f=r.find(x=>x.cc===g.k);return {...g,name:f.name,nameFull:f.nameFull,parent:f.parent}})},
   desc:{cols:[['k','คำอธิบายของสินทรัพย์','d'],['type','ประเภท'],['brand','ยี่ห้อ'],['contract','สัญญา'],['n','จำนวนศูนย์ต้นทุน','num'],['qty','ทั้งหมด','num'],['one','มูลค่า 1 บาท','num'],['more','มากกว่า 1 บาท','num'],['book','มูลค่าตามบัญชี','num2']],
     rows:r=>groups(r,'desc').map(g=>{const f=r.find(x=>x.desc===g.k);return {...g,type:f.type,brand:f.brand,contract:f.contract}})},
+  contract:{cols:[['k','สัญญา'],['year','ปีสัญญา','num0'],['descs','คำอธิบายในสัญญา','d'],['nd','จำนวนคำอธิบาย','num'],['ncc','จำนวนศูนย์ต้นทุน','num'],['qty','ทั้งหมด','num'],['one','มูลค่า 1 บาท','num'],['more','มากกว่า 1 บาท','num'],['book','มูลค่าตามบัญชี','num2']],
+    rows:r=>groups(r,'contract').map(g=>{const s=r.filter(x=>x.contract===g.k),ds=[...new Set(s.map(x=>x.desc))];
+      return {...g,year:s[0].year,descs:ds.join(' · '),nd:ds.length,ncc:new Set(s.map(x=>x.cc)).size}})},
 };
 let tableRows=[];
 function table(rows){const V=VIEWS[view];tableRows=V.rows(rows);
@@ -241,7 +252,7 @@ function table(rows){const V=VIEWS[view];tableRows=V.rows(rows);
   <tbody>${tableRows.slice(page*PS,page*PS+PS).map(r=>`<tr>${V.cols.map(c=>cell(r,c)).join('')}</tr>`).join('')}</tbody>
   <tfoot><tr>${V.cols.map(([k,,t],i)=>i===0?`<td>รวม ${fmt(tableRows.length)} แถว</td>`:['qty','one','more','book'].includes(k)?`<td class="num">${t==='num2'?fmt2(tot(k)):fmt(tot(k))}</td>`:'<td></td>').join('')}</tr></tfoot>`;
   $('pinfo').textContent=`หน้า ${page+1} / ${pages}`;$('prev').disabled=page===0;$('next').disabled=page>=pages-1;
-  $('tbl').querySelectorAll('th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;sortD=sortK===k?-sortD:(['k','name','nameFull','parent','parentFull','desc','type','brand','contract','cc'].includes(k)?1:-1);sortK=k;table(filtered())});
+  $('tbl').querySelectorAll('th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;sortD=sortK===k?-sortD:(['k','name','nameFull','parent','parentFull','desc','descs','type','brand','contract','cc'].includes(k)?1:-1);sortK=k;table(filtered())});
 }
 $('prev').onclick=()=>{page--;table(filtered())};$('next').onclick=()=>{page++;table(filtered())};
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));view=b.dataset.v;page=0;sortK=null;table(filtered())});
@@ -249,7 +260,7 @@ $('csv').onclick=()=>{const V=VIEWS[view];const q=v=>`"${String(v??'').replace(/
   const csv='﻿'+[V.cols.map(c=>q(c[1])).join(','),...tableRows.map(r=>V.cols.map(([k])=>q(r[k])).join(','))].join('\r\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=`printer_${view}.csv`;a.click();URL.revokeObjectURL(a.href)};
 
-function chips(){const lab={parent:'หน่วยงานหลัก',type:'ประเภท',brand:'ยี่ห้อ',year:'ปีสัญญา',val:'มูลค่า',q:'ค้นหา'};
+function chips(){const lab={parent:'หน่วยงานหลัก',type:'ประเภท',brand:'ยี่ห้อ',year:'ปีสัญญา',contract:'สัญญา',val:'มูลค่า',q:'ค้นหา'};
   $('chips').innerHTML=Object.entries(F).filter(([,v])=>v).map(([k,v])=>`<button class="chip" data-k="${k}">${lab[k]}: ${esc(k==='val'?(v==='one'?'1 บาท':'มากกว่า 1 บาท'):k==='parent'?plab(v):v)} ✕</button>`).join('');
   $('chips').querySelectorAll('.chip').forEach(c=>c.onclick=()=>setF(c.dataset.k,''))}
 
@@ -260,14 +271,16 @@ function render(){const rows=filtered();kpis(rows);chips();
   hbar($('cBook'),groups(rows,'type'),null,{metric:'book',stacked:false});
   $('cBook').querySelectorAll('.row').forEach(r=>r.onclick=()=>setF('type',F.type===r.dataset.k?'':r.dataset.k));
   hbar($('cParent'),groups(filtered('parent'),'parent').map(g=>({...g,label:plab(g.k)})),'parent',{limit:15});
+  hbar($('cContract'),groups(filtered('contract'),'contract'),'contract',{limit:15});
   hbar($('cDesc'),groups(rows,'desc'),null,{limit:15});
   years();table(rows)}
 
 Object.entries(sel).forEach(([k,id])=>$(id).onchange=e=>setF(k,e.target.value));
 let t;$('fQ').oninput=e=>{clearTimeout(t);t=setTimeout(()=>{F.q=e.target.value;page=0;render()},200)};
 $('reset').onclick=()=>{Object.keys(F).forEach(k=>F[k]='');Object.values(sel).forEach(id=>$(id).value='');$('fQ').value='';sortK=null;render()};
-// ?q=... in the URL pre-fills the search box (shareable search links)
-try{const q=new URLSearchParams(location.search).get('q');if(q){F.q=q;$('fQ').value=q}}catch(e){}
+// ?q=...&contract=...&parent=... in the URL pre-fills filters (shareable links)
+try{const u=new URLSearchParams(location.search);for(const k of Object.keys(F)){const v=u.get(k);if(v){F[k]=v;if(sel[k])$(sel[k]).value=v;else $('fQ').value=v}}
+  const v=u.get('view');if(VIEWS[v]){view=v;document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v))}}catch(e){}
 render();
 })();
 </script>
