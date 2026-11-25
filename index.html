@@ -108,7 +108,7 @@ footer{color:var(--muted);font-size:12px;margin-top:24px}
     <select id="fBrand"><option value="">ยี่ห้อ: ทั้งหมด</option></select>
     <select id="fYear"><option value="">ปีสัญญา: ทั้งหมด</option></select>
     <select id="fVal"><option value="">มูลค่า: ทั้งหมด</option><option value="one">มูลค่า 1 บาท</option><option value="more">มากกว่า 1 บาท</option></select>
-    <input id="fQ" type="search" placeholder="ค้นหา รหัส/ชื่อหน่วยงาน/คำอธิบาย/สัญญา…">
+    <input id="fQ" type="search" placeholder="ค้นหา ตัวย่อหรือชื่อเต็มหน่วยงาน / รหัส / คำอธิบาย / สัญญา…">
     <button id="reset">ล้างตัวกรอง</button>
     <div class="chips" id="chips"></div>
   </div>
@@ -145,7 +145,7 @@ footer{color:var(--muted);font-size:12px;margin-top:24px}
       <div class="pager"><span id="pinfo"></span><button id="prev">‹ ก่อนหน้า</button><button id="next">ถัดไป ›</button></div>
     </div>
   </section>
-  <footer>ที่มา: สรุปสัญญา_Printer.xlsx — ชีต "รายละเอียดตามคำอธิบาย" (หน่วยงานหลักจากชีต "สรุปจำนวนเครื่อง") · ยี่ห้อ ประเภท และปีสัญญา แยกจากข้อความคำอธิบายสินทรัพย์</footer>
+  <footer>ที่มา: สรุปสัญญา_Printer.xlsx — ชีต "รายละเอียดตามคำอธิบาย" (หน่วยงานหลักจากชีต "สรุปจำนวนเครื่อง") · ชื่อเต็มหน่วยงานจาก abbreviations.csv (สร้างจาก Computer Nameสค69.xlsx) · ยี่ห้อ ประเภท และปีสัญญา แยกจากข้อความคำอธิบายสินทรัพย์</footer>
 </div>
 <div id="tip"></div>
 <script src="data.js"></script>
@@ -168,21 +168,24 @@ $('theme').onclick=()=>{const dark=root.dataset.theme?root.dataset.theme==='dark
 // populate selects
 const sum=(rows,k)=>rows.reduce((a,r)=>a+r[k],0);
 function groups(rows,key){const m=new Map();for(const r of rows){const k=r[key]??'ไม่ระบุ';let g=m.get(k);if(!g)m.set(k,g={k,qty:0,one:0,more:0,book:0,n:0});g.qty+=r.qty;g.one+=r.one;g.more+=r.more;g.book+=r.book;g.n++}return [...m.values()]}
+// full names (from abbreviations.csv via build_data.py)
+const PFULL={};for(const r of ALL)if(r.parentFull)PFULL[r.parent]=r.parentFull;
+const plab=p=>PFULL[p]?`${p} ${PFULL[p]}`:p;
 function fill(id,key,sortByName){const g=groups(ALL,key).sort(sortByName?(a,b)=>String(a.k).localeCompare(String(b.k),'th'):(a,b)=>b.qty-a.qty);
-  $(id).insertAdjacentHTML('beforeend',g.map(x=>`<option value="${esc(x.k)}">${esc(x.k)} (${fmt(x.qty)})</option>`).join(''))}
+  $(id).insertAdjacentHTML('beforeend',g.map(x=>`<option value="${esc(x.k)}">${esc(key==='parent'?plab(x.k):x.k)} (${fmt(x.qty)})</option>`).join(''))}
 fill('fParent','parent',true);fill('fType','type');fill('fBrand','brand');
 $('fYear').insertAdjacentHTML('beforeend',groups(ALL,'year').sort((a,b)=>String(b.k).localeCompare(String(a.k))).map(x=>`<option value="${x.k}">${x.k} (${fmt(x.qty)})</option>`).join(''));
 
 function filtered(except){const q=F.q.trim().toLowerCase();
   return ALL.filter(r=>(except==='parent'||!F.parent||r.parent===F.parent)&&(except==='type'||!F.type||r.type===F.type)&&(except==='brand'||!F.brand||r.brand===F.brand)
    &&(except==='year'||!F.year||String(r.year??'ไม่ระบุ')===F.year)&&(!F.val||r[F.val]>0)
-   &&(!q||(r.cc+' '+r.name+' '+r.desc+' '+r.contract+' '+r.parent).toLowerCase().includes(q)))}
+   &&(!q||(r.cc+' '+r.name+' '+r.nameFull+' '+r.desc+' '+r.contract+' '+r.parent+' '+r.parentFull).toLowerCase().includes(q)))}
 
 // tooltip
 const tip=$('tip');
 document.addEventListener('mousemove',e=>{const t=e.target.closest('[data-tip]');if(!t){tip.style.opacity=0;return}
   tip.innerHTML=t.dataset.tip;tip.style.opacity=1;const w=tip.offsetWidth;tip.style.left=Math.min(e.clientX+12,innerWidth-w-8)+'px';tip.style.top=(e.clientY+14)+'px'});
-const tipOf=g=>`<b>${esc(g.k)}</b><br>ทั้งหมด ${fmt(g.qty)} เครื่อง<br>มูลค่า 1 บาท ${fmt(g.one)} · มากกว่า 1 บาท ${fmt(g.more)}<br>มูลค่าตามบัญชี ${fmt2(g.book)} บาท`;
+const tipOf=g=>`<b>${esc(g.label||g.k)}</b><br>ทั้งหมด ${fmt(g.qty)} เครื่อง<br>มูลค่า 1 บาท ${fmt(g.one)} · มากกว่า 1 บาท ${fmt(g.more)}<br>มูลค่าตามบัญชี ${fmt2(g.book)} บาท`;
 
 function hbar(el,data,filterKey,{metric='qty',limit=99,stacked=true}={}){
   const g=data.sort((a,b)=>b[metric]-a[metric]).filter(x=>x[metric]>0).slice(0,limit);
@@ -190,7 +193,7 @@ function hbar(el,data,filterKey,{metric='qty',limit=99,stacked=true}={}){
   el.innerHTML=g.length?g.map(x=>{const cls=filterKey&&F[filterKey]?(String(x.k)===F[filterKey]?'sel':'dim'):'';
     const segs=stacked?`${x.one?`<div class="seg a" style="width:${x.one/max*100}%;background:var(--s1)"></div>`:''}${x.more?`<div class="seg" style="width:${x.more/max*100}%;background:var(--s2)"></div>`:''}`
       :`<div class="seg" style="width:${x[metric]/max*100}%;background:var(--s1)"></div>`;
-    return `<div class="row ${cls}" data-k="${esc(x.k)}" data-tip="${esc(tipOf(x))}"><span class="lab" title="${esc(x.k)}">${esc(x.k)}</span><div class="track">${segs}</div><span class="val">${metric==='book'?fmt(Math.round(x.book)):fmt(x[metric])}</span></div>`}).join('')
+    return `<div class="row ${cls}" data-k="${esc(x.k)}" data-tip="${esc(tipOf(x))}"><span class="lab">${esc(x.label||x.k)}</span><div class="track">${segs}</div><span class="val">${metric==='book'?fmt(Math.round(x.book)):fmt(x[metric])}</span></div>`}).join('')
     :'<span class="lab">ไม่มีข้อมูล</span>';
   if(filterKey)el.querySelectorAll('.row').forEach(r=>r.onclick=()=>setF(filterKey,F[filterKey]===r.dataset.k?'':r.dataset.k));
   else el.querySelectorAll('.row').forEach(r=>r.onclick=()=>{F.q=r.dataset.k;$('fQ').value=F.q;render()});
@@ -220,10 +223,10 @@ function kpis(rows){const qty=sum(rows,'qty'),one=sum(rows,'one'),more=sum(rows,
 // table
 let view='detail',page=0,sortK=null,sortD=1;const PS=50;
 const VIEWS={
-  detail:{cols:[['cc','รหัสศูนย์ต้นทุน'],['name','ชื่อหน่วยงาน'],['parent','หน่วยงานหลัก'],['desc','คำอธิบายของสินทรัพย์','d'],['type','ประเภท'],['brand','ยี่ห้อ'],['contract','สัญญา'],['qty','จำนวน','num'],['one','มูลค่า 1 บาท','num'],['more','มากกว่า 1 บาท','num'],['book','มูลค่าตามบัญชี','num2']],
+  detail:{cols:[['cc','รหัสศูนย์ต้นทุน'],['name','ชื่อหน่วยงาน'],['nameFull','ชื่อเต็มหน่วยงาน','d'],['parent','หน่วยงานหลัก'],['parentFull','ชื่อเต็มหน่วยงานหลัก','d'],['desc','คำอธิบายของสินทรัพย์','d'],['type','ประเภท'],['brand','ยี่ห้อ'],['contract','สัญญา'],['qty','จำนวน','num'],['one','มูลค่า 1 บาท','num'],['more','มากกว่า 1 บาท','num'],['book','มูลค่าตามบัญชี','num2']],
     rows:r=>r},
-  cc:{cols:[['k','รหัสศูนย์ต้นทุน'],['name','ชื่อหน่วยงาน'],['parent','หน่วยงานหลัก'],['n','จำนวนรายการ','num'],['qty','ทั้งหมด','num'],['one','มูลค่า 1 บาท','num'],['more','มากกว่า 1 บาท','num'],['book','มูลค่าตามบัญชี','num2']],
-    rows:r=>groups(r,'cc').map(g=>{const f=r.find(x=>x.cc===g.k);return {...g,name:f.name,parent:f.parent}})},
+  cc:{cols:[['k','รหัสศูนย์ต้นทุน'],['name','ชื่อหน่วยงาน'],['nameFull','ชื่อเต็มหน่วยงาน','d'],['parent','หน่วยงานหลัก'],['n','จำนวนรายการ','num'],['qty','ทั้งหมด','num'],['one','มูลค่า 1 บาท','num'],['more','มากกว่า 1 บาท','num'],['book','มูลค่าตามบัญชี','num2']],
+    rows:r=>groups(r,'cc').map(g=>{const f=r.find(x=>x.cc===g.k);return {...g,name:f.name,nameFull:f.nameFull,parent:f.parent}})},
   desc:{cols:[['k','คำอธิบายของสินทรัพย์','d'],['type','ประเภท'],['brand','ยี่ห้อ'],['contract','สัญญา'],['n','จำนวนศูนย์ต้นทุน','num'],['qty','ทั้งหมด','num'],['one','มูลค่า 1 บาท','num'],['more','มากกว่า 1 บาท','num'],['book','มูลค่าตามบัญชี','num2']],
     rows:r=>groups(r,'desc').map(g=>{const f=r.find(x=>x.desc===g.k);return {...g,type:f.type,brand:f.brand,contract:f.contract}})},
 };
@@ -238,7 +241,7 @@ function table(rows){const V=VIEWS[view];tableRows=V.rows(rows);
   <tbody>${tableRows.slice(page*PS,page*PS+PS).map(r=>`<tr>${V.cols.map(c=>cell(r,c)).join('')}</tr>`).join('')}</tbody>
   <tfoot><tr>${V.cols.map(([k,,t],i)=>i===0?`<td>รวม ${fmt(tableRows.length)} แถว</td>`:['qty','one','more','book'].includes(k)?`<td class="num">${t==='num2'?fmt2(tot(k)):fmt(tot(k))}</td>`:'<td></td>').join('')}</tr></tfoot>`;
   $('pinfo').textContent=`หน้า ${page+1} / ${pages}`;$('prev').disabled=page===0;$('next').disabled=page>=pages-1;
-  $('tbl').querySelectorAll('th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;sortD=sortK===k?-sortD:(['k','name','parent','desc','type','brand','contract','cc'].includes(k)?1:-1);sortK=k;table(filtered())});
+  $('tbl').querySelectorAll('th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;sortD=sortK===k?-sortD:(['k','name','nameFull','parent','parentFull','desc','type','brand','contract','cc'].includes(k)?1:-1);sortK=k;table(filtered())});
 }
 $('prev').onclick=()=>{page--;table(filtered())};$('next').onclick=()=>{page++;table(filtered())};
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));view=b.dataset.v;page=0;sortK=null;table(filtered())});
@@ -247,7 +250,7 @@ $('csv').onclick=()=>{const V=VIEWS[view];const q=v=>`"${String(v??'').replace(/
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=`printer_${view}.csv`;a.click();URL.revokeObjectURL(a.href)};
 
 function chips(){const lab={parent:'หน่วยงานหลัก',type:'ประเภท',brand:'ยี่ห้อ',year:'ปีสัญญา',val:'มูลค่า',q:'ค้นหา'};
-  $('chips').innerHTML=Object.entries(F).filter(([,v])=>v).map(([k,v])=>`<button class="chip" data-k="${k}">${lab[k]}: ${esc(k==='val'?(v==='one'?'1 บาท':'มากกว่า 1 บาท'):v)} ✕</button>`).join('');
+  $('chips').innerHTML=Object.entries(F).filter(([,v])=>v).map(([k,v])=>`<button class="chip" data-k="${k}">${lab[k]}: ${esc(k==='val'?(v==='one'?'1 บาท':'มากกว่า 1 บาท'):k==='parent'?plab(v):v)} ✕</button>`).join('');
   $('chips').querySelectorAll('.chip').forEach(c=>c.onclick=()=>setF(c.dataset.k,''))}
 
 function setF(k,v){F[k]=v;if(sel[k])$(sel[k]).value=v;else $('fQ').value=v;page=0;render()}
@@ -256,13 +259,15 @@ function render(){const rows=filtered();kpis(rows);chips();
   hbar($('cBrand'),groups(filtered('brand'),'brand'),'brand');
   hbar($('cBook'),groups(rows,'type'),null,{metric:'book',stacked:false});
   $('cBook').querySelectorAll('.row').forEach(r=>r.onclick=()=>setF('type',F.type===r.dataset.k?'':r.dataset.k));
-  hbar($('cParent'),groups(filtered('parent'),'parent'),'parent',{limit:15});
+  hbar($('cParent'),groups(filtered('parent'),'parent').map(g=>({...g,label:plab(g.k)})),'parent',{limit:15});
   hbar($('cDesc'),groups(rows,'desc'),null,{limit:15});
   years();table(rows)}
 
 Object.entries(sel).forEach(([k,id])=>$(id).onchange=e=>setF(k,e.target.value));
 let t;$('fQ').oninput=e=>{clearTimeout(t);t=setTimeout(()=>{F.q=e.target.value;page=0;render()},200)};
 $('reset').onclick=()=>{Object.keys(F).forEach(k=>F[k]='');Object.values(sel).forEach(id=>$(id).value='');$('fQ').value='';sortK=null;render()};
+// ?q=... in the URL pre-fills the search box (shareable search links)
+try{const q=new URLSearchParams(location.search).get('q');if(q){F.q=q;$('fQ').value=q}}catch(e){}
 render();
 })();
 </script>
