@@ -40,6 +40,17 @@ button:hover{background:var(--hover)}
 .filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:16px;box-shadow:var(--shadow);position:sticky;top:0;z-index:5}
 .filters select{max-width:200px}
 .filters input{flex:1;min-width:180px}
+.ms{position:relative}
+.ms-btn{max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ms-btn.on{border-color:var(--s1);background:var(--s1-soft)}
+.ms-panel{position:absolute;top:calc(100% + 4px);left:0;z-index:10;min-width:240px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px;box-shadow:0 6px 24px rgba(0,0,0,.14)}
+.ms-panel label{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.ms-panel label:hover{background:var(--hover)}
+.ms-panel label.zero{color:var(--muted);cursor:default}
+.ms-panel label .n{margin-left:auto;color:var(--text2);font-variant-numeric:tabular-nums;padding-left:16px}
+.ms-panel input{accent-color:var(--s1);margin:0;flex:none;min-width:0}
+.ms-acts{display:flex;justify-content:flex-end;border-top:1px solid var(--grid);margin-top:4px;padding-top:6px}
+.ms-acts button{font-size:12px;padding:3px 10px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;width:100%}
 .chips:empty{display:none}
 .chip{font-size:12px;background:var(--s1-soft);border:0;border-radius:999px;padding:2px 10px}
@@ -104,11 +115,12 @@ footer{color:var(--muted);font-size:12px;margin-top:24px}
 
   <div class="filters" role="search">
     <select id="fParent"><option value="">หน่วยงานหลัก: ทั้งหมด</option></select>
-    <select id="fType"><option value="">ประเภท: ทั้งหมด</option></select>
+    <div class="ms" id="fType"><button type="button" class="ms-btn" id="fTypeBtn" aria-haspopup="true" aria-expanded="false">ประเภท: ทั้งหมด ▾</button>
+      <div class="ms-panel" id="fTypePanel" hidden><div id="fTypeList"></div><div class="ms-acts"><button type="button" id="fTypeClear">ล้างประเภท</button></div></div></div>
     <select id="fBrand"><option value="">ยี่ห้อ: ทั้งหมด</option></select>
     <select id="fYear"><option value="">ปีสัญญา: ทั้งหมด</option></select>
     <select id="fContract"><option value="">สัญญา: ทั้งหมด</option></select>
-    <select id="fVal"><option value="">มูลค่า: ทั้งหมด</option><option value="one">มูลค่า 1 บาท</option><option value="more">มากกว่า 1 บาท</option></select>
+    <select id="fVal"></select>
     <input id="fQ" type="search" placeholder="ค้นหา ตัวย่อหรือชื่อเต็มหน่วยงาน / รหัส / คำอธิบาย / สัญญา…">
     <button id="reset">ล้างตัวกรอง</button>
     <div class="chips" id="chips"></div>
@@ -117,7 +129,7 @@ footer{color:var(--muted);font-size:12px;margin-top:24px}
   <section class="kpis" id="kpis"></section>
 
   <section class="grid">
-    <div class="card c4"><h2>จำนวนเครื่องตามประเภท</h2><p class="hint">คลิกแท่งเพื่อกรอง</p>
+    <div class="card c4"><h2>จำนวนเครื่องตามประเภท</h2><p class="hint">คลิกแท่งเพื่อเลือก/ยกเลิกประเภท (เลือกได้หลายประเภท)</p>
       <div class="legend"><span><i style="background:var(--s1)"></i>มูลค่า 1 บาท</span><span><i style="background:var(--s2)"></i>มากกว่า 1 บาท</span></div>
       <div class="hbar" id="cType"></div></div>
     <div class="card c4"><h2>จำนวนเครื่องตามยี่ห้อ</h2><p class="hint">จากคำอธิบาย/รุ่น — "ไม่ระบุยี่ห้อ" คือคำอธิบายที่ไม่มีชื่อยี่ห้อ</p>
@@ -160,8 +172,10 @@ const ALL=D.rows.map(r=>Object.fromEntries(D.cols.map((c,i)=>[c,r[i]])));
 const $=id=>document.getElementById(id);
 const fmt=n=>n.toLocaleString('th-TH'), fmt2=n=>n.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const F={parent:'',type:'',brand:'',year:'',contract:'',val:'',q:''};
-const sel={parent:'fParent',type:'fType',brand:'fBrand',year:'fYear',contract:'fContract',val:'fVal'};
+const F={parent:'',type:[],brand:'',year:'',contract:'',val:'',q:''};   // type = multi-select (array)
+const sel={parent:'fParent',brand:'fBrand',year:'fYear',contract:'fContract',val:'fVal'};
+const isOn=(k,v)=>Array.isArray(F[k])?F[k].includes(String(v)):String(v)===F[k];
+const active=k=>Array.isArray(F[k])?F[k].length>0:!!F[k];
 
 // theme toggle
 const root=document.documentElement;
@@ -175,18 +189,38 @@ function groups(rows,key){const m=new Map();for(const r of rows){const k=r[key]?
 // full names (from abbreviations.csv via build_data.py)
 const PFULL={};for(const r of ALL)if(r.parentFull)PFULL[r.parent]=r.parentFull;
 const plab=p=>PFULL[p]?`${p} ${PFULL[p]}`:p;
-function fill(id,key,sortByName){const g=groups(ALL,key).sort(sortByName?(a,b)=>String(a.k).localeCompare(String(b.k),'th'):(a,b)=>b.qty-a.qty);
-  $(id).insertAdjacentHTML('beforeend',g.map(x=>`<option value="${esc(x.k)}">${esc(key==='parent'?plab(x.k):x.k)} (${fmt(x.qty)})</option>`).join(''))}
-fill('fParent','parent',true);fill('fType','type');fill('fBrand','brand');
-$('fYear').insertAdjacentHTML('beforeend',groups(ALL,'year').sort((a,b)=>String(b.k).localeCompare(String(a.k))).map(x=>`<option value="${x.k}">${x.k} (${fmt(x.qty)})</option>`).join(''));
+// option order is fixed (from all data); the counts in brackets are recomputed on every render
+const keysOf=(key,cmp)=>groups(ALL,key).sort(cmp).map(x=>String(x.k));
+const byName=(a,b)=>String(a.k).localeCompare(String(b.k),'th'), byQty=(a,b)=>b.qty-a.qty;
 // contracts: newest year first, then contract number
 const cNum=k=>{const m=/^(\D+)(\d+)\/(\d+)$/.exec(k);return m?[+m[3],m[1],+m[2]]:[0,k,0]};
-$('fContract').insertAdjacentHTML('beforeend',groups(ALL,'contract').sort((a,b)=>{const x=cNum(a.k),y=cNum(b.k);return y[0]-x[0]||x[1].localeCompare(y[1],'th')||x[2]-y[2]})
-  .map(x=>`<option value="${esc(x.k)}">${esc(x.k)} (${fmt(x.qty)})</option>`).join(''));
+const ORDER={parent:keysOf('parent',byName),type:keysOf('type',byQty),brand:keysOf('brand',byQty),
+  year:keysOf('year',(a,b)=>String(b.k).localeCompare(String(a.k))),
+  contract:keysOf('contract',(a,b)=>{const x=cNum(a.k),y=cNum(b.k);return y[0]-x[0]||x[1].localeCompare(y[1],'th')||x[2]-y[2]})};
+const BASE={parent:'หน่วยงานหลัก',type:'ประเภท',brand:'ยี่ห้อ',year:'ปีสัญญา',contract:'สัญญา'};
+
+// counts for one filter = data filtered by every OTHER filter (so the menu shows what you'd get by picking it)
+function counts(key){const m=new Map();let tot=0;for(const g of groups(filtered(key),key)){m.set(String(g.k),g.qty);tot+=g.qty}return {m,tot}}
+function refreshMenus(){
+  for(const key of ['parent','brand','year','contract']){const {m,tot}=counts(key);
+    $(sel[key]).innerHTML=`<option value="">${BASE[key]}: ทั้งหมด (${fmt(tot)})</option>`+ORDER[key].map(k=>{const n=m.get(k)||0,on=k===F[key];
+      return n||on?`<option value="${esc(k)}"${on?' selected':''}>${esc(key==='parent'?plab(k):k)} (${fmt(n)})</option>`:''}).join('')}
+  const vr=filtered('val'),one=vr.reduce((a,r)=>a+(r.one>0?r.qty:0),0),more=vr.reduce((a,r)=>a+(r.more>0?r.qty:0),0);
+  $('fVal').innerHTML=[['',`มูลค่า: ทั้งหมด (${fmt(sum(vr,'qty'))})`],['one',`มูลค่า 1 บาท (${fmt(sum(vr,'one'))})`],['more',`มากกว่า 1 บาท (${fmt(sum(vr,'more'))})`]]
+    .map(([v,l])=>`<option value="${v}"${v===F.val?' selected':''}>${l}</option>`).join('');
+  // type multi-select
+  const {m,tot}=counts('type');
+  $('fTypeList').innerHTML=ORDER.type.map(k=>{const n=m.get(k)||0,on=F.type.includes(k);
+    return `<label class="${n||on?'':'zero'}"><input type="checkbox" value="${esc(k)}"${on?' checked':''}${n||on?'':' disabled'}>${esc(k)}<span class="n">${fmt(n)}</span></label>`}).join('');
+  $('fTypeList').querySelectorAll('input').forEach(i=>i.onchange=()=>pick('type',i.value));
+  const pickedN=F.type.reduce((a,k)=>a+(m.get(k)||0),0);
+  $('fTypeBtn').textContent=!F.type.length?`ประเภท: ทั้งหมด (${fmt(tot)}) ▾`:F.type.length===1?`ประเภท: ${F.type[0]} (${fmt(pickedN)}) ▾`:`ประเภท: ${F.type.length} ประเภท (${fmt(pickedN)}) ▾`;
+  $('fTypeBtn').classList.toggle('on',F.type.length>0);$('fTypeBtn').title=F.type.join(', ');
+}
 
 function filtered(except){const q=F.q.trim().toLowerCase();
-  return ALL.filter(r=>(except==='parent'||!F.parent||r.parent===F.parent)&&(except==='type'||!F.type||r.type===F.type)&&(except==='brand'||!F.brand||r.brand===F.brand)
-   &&(except==='year'||!F.year||String(r.year??'ไม่ระบุ')===F.year)&&(except==='contract'||!F.contract||r.contract===F.contract)&&(!F.val||r[F.val]>0)
+  return ALL.filter(r=>(except==='parent'||!F.parent||r.parent===F.parent)&&(except==='type'||!F.type.length||F.type.includes(r.type))&&(except==='brand'||!F.brand||r.brand===F.brand)
+   &&(except==='year'||!F.year||String(r.year??'ไม่ระบุ')===F.year)&&(except==='contract'||!F.contract||r.contract===F.contract)&&(except==='val'||!F.val||r[F.val]>0)
    &&(!q||(r.cc+' '+r.name+' '+r.nameFull+' '+r.desc+' '+r.contract+' '+r.parent+' '+r.parentFull).toLowerCase().includes(q)))}
 
 // tooltip
@@ -198,12 +232,12 @@ const tipOf=g=>`<b>${esc(g.label||g.k)}</b><br>ทั้งหมด ${fmt(g.qty
 function hbar(el,data,filterKey,{metric='qty',limit=99,stacked=true}={}){
   const g=data.sort((a,b)=>b[metric]-a[metric]).filter(x=>x[metric]>0).slice(0,limit);
   const max=Math.max(1,...g.map(x=>x[metric]));
-  el.innerHTML=g.length?g.map(x=>{const cls=filterKey&&F[filterKey]?(String(x.k)===F[filterKey]?'sel':'dim'):'';
+  el.innerHTML=g.length?g.map(x=>{const cls=filterKey&&active(filterKey)?(isOn(filterKey,x.k)?'sel':'dim'):'';
     const segs=stacked?`${x.one?`<div class="seg a" style="width:${x.one/max*100}%;background:var(--s1)"></div>`:''}${x.more?`<div class="seg" style="width:${x.more/max*100}%;background:var(--s2)"></div>`:''}`
       :`<div class="seg" style="width:${x[metric]/max*100}%;background:var(--s1)"></div>`;
     return `<div class="row ${cls}" data-k="${esc(x.k)}" data-tip="${esc(tipOf(x))}"><span class="lab">${esc(x.label||x.k)}</span><div class="track">${segs}</div><span class="val">${metric==='book'?fmt(Math.round(x.book)):fmt(x[metric])}</span></div>`}).join('')
     :'<span class="lab">ไม่มีข้อมูล</span>';
-  if(filterKey)el.querySelectorAll('.row').forEach(r=>r.onclick=()=>setF(filterKey,F[filterKey]===r.dataset.k?'':r.dataset.k));
+  if(filterKey)el.querySelectorAll('.row').forEach(r=>r.onclick=()=>pick(filterKey,r.dataset.k));
   else el.querySelectorAll('.row').forEach(r=>r.onclick=()=>{F.q=r.dataset.k;$('fQ').value=F.q;render()});
 }
 
@@ -213,7 +247,7 @@ function years(){const rows=filtered('year');const g=groups(rows,'year').filter(
   $('cYear').innerHTML=all.map(y=>{const x=m.get(y)||{k:y,qty:0,one:0,more:0,book:0};const cls=F.year?(String(y)===F.year?'':'dim'):'';
     return `<div class="col ${cls}" data-k="${y}" data-tip="${esc(tipOf(x))}"><span class="top">${x.qty?fmt(x.qty):''}</span><div class="bar">${x.one?`<div style="height:${x.one/max*190}px;background:var(--s1)"></div>`:''}${x.more?`<div style="height:${x.more/max*190}px;background:var(--s2)"></div>`:''}</div></div>`}).join('');
   $('cYearX').innerHTML=all.map(y=>`<span>${y}</span>`).join('');
-  $('cYear').querySelectorAll('.col').forEach(c=>c.onclick=()=>setF('year',F.year===c.dataset.k?'':c.dataset.k));
+  $('cYear').querySelectorAll('.col').forEach(c=>c.onclick=()=>pick('year',c.dataset.k));
 }
 
 function kpis(rows){const qty=sum(rows,'qty'),one=sum(rows,'one'),more=sum(rows,'more'),book=sum(rows,'book');
@@ -261,15 +295,17 @@ $('csv').onclick=()=>{const V=VIEWS[view];const q=v=>`"${String(v??'').replace(/
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=`printer_${view}.csv`;a.click();URL.revokeObjectURL(a.href)};
 
 function chips(){const lab={parent:'หน่วยงานหลัก',type:'ประเภท',brand:'ยี่ห้อ',year:'ปีสัญญา',contract:'สัญญา',val:'มูลค่า',q:'ค้นหา'};
-  $('chips').innerHTML=Object.entries(F).filter(([,v])=>v).map(([k,v])=>`<button class="chip" data-k="${k}">${lab[k]}: ${esc(k==='val'?(v==='one'?'1 บาท':'มากกว่า 1 บาท'):k==='parent'?plab(v):v)} ✕</button>`).join('');
-  $('chips').querySelectorAll('.chip').forEach(c=>c.onclick=()=>setF(c.dataset.k,''))}
+  $('chips').innerHTML=Object.entries(F).flatMap(([k,v])=>Array.isArray(v)?v.map(x=>[k,x]):v?[[k,v]]:[]).map(([k,v])=>`<button class="chip" data-k="${k}" data-v="${esc(v)}">${lab[k]}: ${esc(k==='val'?(v==='one'?'1 บาท':'มากกว่า 1 บาท'):k==='parent'?plab(v):v)} ✕</button>`).join('');
+  $('chips').querySelectorAll('.chip').forEach(c=>c.onclick=()=>c.dataset.k==='type'?pick('type',c.dataset.v):setF(c.dataset.k,''))}
 
-function setF(k,v){F[k]=v;if(sel[k])$(sel[k]).value=v;else $('fQ').value=v;page=0;render()}
-function render(){const rows=filtered();kpis(rows);chips();
+function setF(k,v){F[k]=v;if(k==='q')$('fQ').value=v;page=0;render()}
+// click on a bar / checkbox: type toggles membership (multi), others toggle the single value
+function pick(k,v){v=String(v);if(Array.isArray(F[k]))setF(k,F[k].includes(v)?F[k].filter(x=>x!==v):[...F[k],v]);else setF(k,F[k]===v?'':v)}
+function render(){const rows=filtered();kpis(rows);chips();refreshMenus();
   hbar($('cType'),groups(filtered('type'),'type'),'type');
   hbar($('cBrand'),groups(filtered('brand'),'brand'),'brand');
   hbar($('cBook'),groups(rows,'type'),null,{metric:'book',stacked:false});
-  $('cBook').querySelectorAll('.row').forEach(r=>r.onclick=()=>setF('type',F.type===r.dataset.k?'':r.dataset.k));
+  $('cBook').querySelectorAll('.row').forEach(r=>{r.onclick=()=>pick('type',r.dataset.k);if(F.type.length)r.classList.add(isOn('type',r.dataset.k)?'sel':'dim')});
   hbar($('cParent'),groups(filtered('parent'),'parent').map(g=>({...g,label:plab(g.k)})),'parent',{limit:15});
   hbar($('cContract'),groups(filtered('contract'),'contract'),'contract',{limit:15});
   hbar($('cDesc'),groups(rows,'desc'),null,{limit:15});
@@ -277,9 +313,16 @@ function render(){const rows=filtered();kpis(rows);chips();
 
 Object.entries(sel).forEach(([k,id])=>$(id).onchange=e=>setF(k,e.target.value));
 let t;$('fQ').oninput=e=>{clearTimeout(t);t=setTimeout(()=>{F.q=e.target.value;page=0;render()},200)};
-$('reset').onclick=()=>{Object.keys(F).forEach(k=>F[k]='');Object.values(sel).forEach(id=>$(id).value='');$('fQ').value='';sortK=null;render()};
+$('reset').onclick=()=>{Object.keys(F).forEach(k=>F[k]=Array.isArray(F[k])?[]:'');$('fQ').value='';sortK=null;page=0;render()};
+// type dropdown open/close
+const tBtn=$('fTypeBtn'),tPanel=$('fTypePanel');
+const tOpen=o=>{tPanel.hidden=!o;tBtn.setAttribute('aria-expanded',o)};
+tBtn.onclick=()=>tOpen(tPanel.hidden);
+$('fTypeClear').onclick=()=>setF('type',[]);
+document.addEventListener('click',e=>{if(!tPanel.hidden&&!e.target.closest('#fType'))tOpen(false)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')tOpen(false)});
 // ?q=...&contract=...&parent=... in the URL pre-fills filters (shareable links)
-try{const u=new URLSearchParams(location.search);for(const k of Object.keys(F)){const v=u.get(k);if(v){F[k]=v;if(sel[k])$(sel[k]).value=v;else $('fQ').value=v}}
+try{const u=new URLSearchParams(location.search);for(const k of Object.keys(F)){const v=u.get(k);if(v){if(Array.isArray(F[k]))F[k]=v.split(',').map(s=>s.trim()).filter(Boolean);else F[k]=v;if(k==='q')$('fQ').value=v}}
   const v=u.get('view');if(VIEWS[v]){view=v;document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v))}}catch(e){}
 render();
 })();
